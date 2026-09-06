@@ -19,6 +19,15 @@ short open/read timeouts, bounded reconnect backoff, and latest-frame
 semantics. RTSP credentials are never returned by the API or sent to the
 browser. Local files are supported only as `FILE / DEMO` fallback sources.
 
+## Render deployment
+
+`render.yaml` uses Python 3.12, preloads the existing `yolov8n.pt` model during
+the build, and starts Uvicorn on `0.0.0.0:$PORT`. Render is configured for
+`CAMERA_MODE=rtsp`, so it does not assume a laptop webcam exists in the cloud.
+Set the secret Render environment variable `RTSP_URL` to a reachable camera
+URL; credentials must not be committed. Local development continues to use
+the webcam configuration and port 8765 by default.
+
 ## Endpoints
 
 - `GET /health`
