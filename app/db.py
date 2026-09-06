@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, select
+from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
@@ -24,6 +24,13 @@ class Event(Base):
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     snapshot: Mapped[str | None] = mapped_column(String(500), nullable=True)
     metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    object_class: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    zone_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bbox_json: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="active")
+    plate_text: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    plate_detection_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class EventStore:
@@ -35,6 +42,23 @@ class EventStore:
         self.engine = create_engine(database_url, connect_args={"check_same_thread": False})
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         Base.metadata.create_all(self.engine)
+        self._ensure_event_columns()
+
+    def _ensure_event_columns(self) -> None:
+        columns = {column["name"] for column in inspect(self.engine).get_columns("events")}
+        additions = {
+            "object_class": "VARCHAR(100)",
+            "zone_id": "VARCHAR(100)",
+            "bbox_json": "VARCHAR(500)",
+            "status": "VARCHAR(30) DEFAULT 'active'",
+            "plate_text": "VARCHAR(20)",
+            "ocr_confidence": "FLOAT",
+            "plate_detection_confidence": "FLOAT",
+        }
+        with self.engine.begin() as connection:
+            for name, definition in additions.items():
+                if name not in columns:
+                    connection.execute(text(f"ALTER TABLE events ADD COLUMN {name} {definition}"))
 
     def add(self, data: dict[str, Any]) -> dict[str, Any]:
         event = Event(timestamp=datetime.now(timezone.utc), **data)
@@ -49,8 +73,17 @@ class EventStore:
             rows = session.scalars(select(Event).order_by(Event.timestamp.desc()).limit(limit)).all()
             return [self.serialize(row) for row in rows]
 
+    def close(self) -> None:
+        self.engine.dispose()
+
     @staticmethod
     def serialize(event: Event) -> dict[str, Any]:
-        return {"id": event.id, "camera_id": event.camera_id, "timestamp": event.timestamp.isoformat(),
-                "event_type": event.event_type, "severity": event.severity, "track_id": event.track_id,
-                "confidence": event.confidence, "snapshot": event.snapshot, "metadata": event.metadata_json}
+        return {
+            "id": event.id, "camera_id": event.camera_id, "timestamp": event.timestamp.isoformat(),
+            "event_type": event.event_type, "severity": event.severity, "track_id": event.track_id,
+            "confidence": event.confidence, "snapshot": event.snapshot, "metadata": event.metadata_json,
+            "object_class": event.object_class, "zone_id": event.zone_id,
+            "bbox": event.bbox_json, "status": event.status,
+            "plate_text": event.plate_text, "ocr_confidence": event.ocr_confidence,
+            "plate_detection_confidence": event.plate_detection_confidence,
+        }

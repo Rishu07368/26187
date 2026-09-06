@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
+import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
@@ -22,6 +23,9 @@ class CameraSource(ABC):
         self.latest_error: str | None = None
 
     @abstractmethod
+    def open(self) -> bool: ...
+
+    @abstractmethod
     def read(self) -> np.ndarray | None: ...
 
     @abstractmethod
@@ -36,17 +40,27 @@ class CameraSource(ABC):
 
 
 class RTSPCameraSource(CameraSource):
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, open_timeout_ms: int = 5000, read_timeout_ms: int = 5000) -> None:
         super().__init__()
         self.url = url
+        self.open_timeout_ms = open_timeout_ms
+        self.read_timeout_ms = read_timeout_ms
         self.capture: cv2.VideoCapture | None = None
         self._last_capture_time = 0.0
         self._fps_samples: list[float] = []
+        self.reconnect_attempts = 0
 
     def _connect(self) -> bool:
         self.connection_state = "RECONNECTING"
+        self.reconnect_attempts += 1
+        os.environ.setdefault(
+            "OPENCV_FFMPEG_CAPTURE_OPTIONS",
+            "rtsp_transport;tcp|stimeout;5000000",
+        )
         cap = cv2.VideoCapture()
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.open_timeout_ms)
+        cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, self.read_timeout_ms)
         if not cap.open(self.url, cv2.CAP_FFMPEG):
             cap.release()
             self.latest_error = "Unable to open RTSP stream"
@@ -57,6 +71,9 @@ class RTSPCameraSource(CameraSource):
         self.connection_state = "CONNECTED"
         self.latest_error = None
         return True
+
+    def open(self) -> bool:
+        return self._connect()
 
     def read(self) -> np.ndarray | None:
         if self.capture is None and not self._connect():
@@ -118,6 +135,9 @@ class WebcamSource(CameraSource):
         self.latest_error = None
         return True
 
+    def open(self) -> bool:
+        return self._connect()
+
     def read(self) -> np.ndarray | None:
         interval = 1.0 / self.target_fps
         now = time.monotonic()
@@ -163,13 +183,21 @@ class LocalVideoSource(CameraSource):
         self.path = path
         self.capture: cv2.VideoCapture | None = None
 
-    def read(self) -> np.ndarray | None:
-        started = time.monotonic()
+    def open(self) -> bool:
         if self.capture is None:
             self.capture = cv2.VideoCapture(self.path)
         if not self.capture.isOpened():
-            self.connection_state = "OFFLINE"
             self.latest_error = f"File unavailable: {self.path}"
+            self.connection_state = "OFFLINE"
+            return False
+        self.connected = True
+        self.connection_state = "CONNECTED"
+        self.latest_error = None
+        return True
+
+    def read(self) -> np.ndarray | None:
+        started = time.monotonic()
+        if not self.open():
             return None
         ok, frame = self.capture.read()
         if not ok:

@@ -19,6 +19,7 @@ class CameraConfig:
     enabled: bool = True
     confidence: float = 0.35
     zone: list[list[int]] = field(default_factory=list)
+    zones: list[dict] = field(default_factory=list)
 
 
 @dataclass
