@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Border Surveillance</title>
+<style>body{font:15px system-ui;background:#10151c;color:#eef;margin:0;padding:20px}h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px}.card{background:#19232e;border:1px solid #304050;border-radius:8px;padding:14px}.feed{width:100%;background:#000;min-height:220px}.ok{color:#62e69a}.bad{color:#ff987f}.meta{display:flex;gap:14px;flex-wrap:wrap;color:#b8c8d8}.event{padding:8px;border-bottom:1px solid #304050}</style></head>
+<body><h1>SIH26187 Border Surveillance <small>LIVE CCTV analytics</small></h1><div id="cameras" class="grid"></div><h2>Live alerts</h2><div id="events"></div>
+<script>
+const cameras=document.querySelector('#cameras'),events=document.querySelector('#events');
+function render(c){const live=c.connected&&c.last_frame_timestamp;const badge=c.source_type==='rtsp'?'RTSP / LIVE CCTV':c.source_type==='webcam'?'WEBCAM / LIVE CAMERA':'FILE / DEMO';return `<article class="card"><h2>${c.name}</h2><b class="${live?'ok':'bad'}">${live?'LIVE':'OFFLINE'}</b> <b>${badge}</b><img class="feed" src="/stream/${c.camera_id}"><div class="meta"><span>Resolution: ${c.resolution||'—'}</span><span>Capture FPS: ${c.capture_fps}</span><span>Processing FPS: ${c.processing_fps}</span><span>Tracks: ${c.active_tracks}</span><span>Detections: ${c.detection_count}</span></div></article>`}
+async function refresh(){const r=await fetch('/cameras');cameras.innerHTML=(await r.json()).map(render).join('')||'<p>No enabled cameras. Configure cameras.json.</p>'}refresh();setInterval(refresh,2000);
+const ws=new WebSocket(`ws://${location.host}/alerts/live`);ws.onmessage=e=>{const x=JSON.parse(e.data);events.insertAdjacentHTML('afterbegin',`<div class="event"><b>${x.severity}</b> ${x.event_type} — ${x.camera_id} — ${x.timestamp}</div>`)}
+</script></body></html>

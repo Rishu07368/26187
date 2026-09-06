@@ -1,0 +1,29 @@
+[
+  {
+    "id": "live-webcam",
+    "name": "Live Laptop Webcam",
+    "source_type": "webcam",
+    "source": 0,
+    "enabled": true,
+    "confidence": 0.35,
+    "zone": []
+  },
+  {
+    "id": "demo-day",
+    "name": "Daytime local demonstration",
+    "source_type": "file",
+    "file_path": "data/demo-day.mp4",
+    "enabled": false,
+    "confidence": 0.35,
+    "zone": []
+  },
+  {
+    "id": "border-cam-01",
+    "name": "Border Camera 01",
+    "source_type": "rtsp",
+    "rtsp_url": "rtsp://USERNAME:PASSWORD@CAMERA_IP:554/STREAM_PATH",
+    "enabled": false,
+    "confidence": 0.35,
+    "zone": []
+  }
+]

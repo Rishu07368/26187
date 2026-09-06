@@ -1,0 +1,20 @@
+[
+  {
+    "id": "live-webcam",
+    "name": "Live Laptop Webcam",
+    "source_type": "webcam",
+    "source": 0,
+    "enabled": true,
+    "confidence": 0.35,
+    "zone": []
+  },
+  {
+    "id": "border-cam-01",
+    "name": "Border Camera 01",
+    "source_type": "rtsp",
+    "rtsp_url": "rtsp://USERNAME:PASSWORD@CAMERA_IP:554/STREAM_PATH",
+    "enabled": true,
+    "confidence": 0.35,
+    "zone": [[100, 100], [500, 100], [500, 400], [100, 400]]
+  }
+]
