@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sih26187
+    env: python
+    buildCommand: pip install -r requirements.txt && python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CAMERA_MODE
+        value: rtsp
+      - key: YOLO_MODEL
+        value: yolov8n.pt

@@ -48,6 +48,23 @@ def load_settings(root: Path | None = None) -> Settings:
             if item.get("file_path") and not Path(item["file_path"]).is_absolute():
                 item["file_path"] = str(root / item["file_path"])
             cameras.append(CameraConfig(**item))
+    if os.getenv("CAMERA_MODE", "local").lower() == "rtsp":
+        rtsp_url = os.getenv("RTSP_URL", "").strip()
+        cameras = [
+            CameraConfig(
+                id=camera.id,
+                name=camera.name,
+                source_type=camera.source_type,
+                source=camera.source,
+                rtsp_url=rtsp_url if camera.source_type.lower() == "rtsp" and rtsp_url else camera.rtsp_url,
+                file_path=camera.file_path,
+                enabled=bool(rtsp_url) and camera.source_type.lower() == "rtsp",
+                confidence=camera.confidence,
+                zone=camera.zone,
+                zones=camera.zones,
+            )
+            for camera in cameras
+        ]
     snapshot_dir = Path(os.getenv("SNAPSHOT_DIR", "data/snapshots"))
     if not snapshot_dir.is_absolute():
         snapshot_dir = root / snapshot_dir
